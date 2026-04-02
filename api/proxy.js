@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       };
  
     } else if (target === 'gemini') {
-      url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+      url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
  
       const chunks = [];
       for await (const chunk of req) {
@@ -36,7 +36,6 @@ export default async function handler(req, res) {
       };
  
     } else {
-      // Unknown target — return 400 so the proxy ping test gets a response
       res.status(400).json({ error: 'Unknown target: ' + target });
       return;
     }
