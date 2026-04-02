@@ -1407,7 +1407,7 @@ body::before {
       url = <span class="str">`https://api.cricapi.com/v1/${endpoint}?apikey=${apikey}&offset=0`</span>;
       opts.method = <span class="str">'GET'</span>;
     } <span class="kw">else if</span> (target === <span class="str">'gemini'</span>) {
-      url = <span class="str">`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${key}`</span>;
+      url = <span class="str">`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`</span>;
       opts.method = <span class="str">'POST'</span>;
       opts.body = <span class="fn">JSON.stringify</span>(req.body);
     }
@@ -2760,7 +2760,7 @@ async function testConnections() {
   // ── Test Gemini DIRECTLY (always bypass proxy for test) ──
   if (STATE.keys.gemini) {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${STATE.keys.gemini}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${STATE.keys.gemini}`;
       const r = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3128,7 +3128,7 @@ async function callGemini(userMessage) {
   const apiKey = encodeURIComponent(geminiKey);
   const url = proxyUrl
     ? `${proxyUrl}/api/proxy?target=gemini&key=${apiKey}`
-    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${geminiKey}`;
+    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
 
   const res = await fetch(url, {
     method: 'POST',
