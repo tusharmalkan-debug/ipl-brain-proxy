@@ -1606,7 +1606,7 @@ body::before {
     </div>
 
     <!-- Results + Upcoming -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.4rem;">
 
       <!-- Recent Results -->
       <div class="section-block" style="margin-bottom:0;">
@@ -1629,9 +1629,6 @@ body::before {
       </div>
     </div>
 
-    @media(max-width:700px) {
-      /* results + upcoming column override */
-    }
 
   </section>
 
@@ -2209,24 +2206,24 @@ async function apiFetch(endpoint, params = {}, ttl = 600) {
   const { cricket: cricKey, proxy: proxyUrl } = STATE.keys;
   if (!cricKey) return null;
 
+  const base = (proxyUrl || '').replace(/\/$/, '');
   let url;
-  if (proxyUrl) {
-    const base = proxyUrl.replace(/\/$/, '');
-    const qp = new URLSearchParams({ target:'cricket', endpoint, apikey: cricKey, ...params });
-    url = `${base}/api/proxy?${qp}`;
+  if (base) {
+    // Always use proxy when set — avoids all CORS issues
+    url = `${base}/api/proxy?target=cricket&endpoint=${encodeURIComponent(endpoint)}&apikey=${encodeURIComponent(cricKey)}`;
   } else {
-    const qp = new URLSearchParams({ apikey: cricKey, offset: 0, ...params });
-    url = `https://api.cricapi.com/v1/${endpoint}?${qp}`;
+    url = `https://api.cricapi.com/v1/${endpoint}?apikey=${cricKey}&offset=0`;
   }
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.status === 'success' || data.data) {
       store.cset(cacheKey, data, ttl);
       return data;
     }
+    console.warn('apiFetch: unexpected response', data);
     return null;
   } catch (e) {
     console.warn('API fetch error:', e.message);
@@ -2376,6 +2373,9 @@ async function refreshLiveData() {
   }));
   STATE.matches = [...completed, ...upcoming];
   if (STATE.matches.length === 0) STATE.matches = DEMO_MATCHES;
+  // Persist to localStorage so page reload keeps data
+  store.set('matches', STATE.matches);
+  if (STATE.liveData) store.set('liveData', STATE.liveData);
 
   if (STATE.page === 'live') renderTracker();
 }
