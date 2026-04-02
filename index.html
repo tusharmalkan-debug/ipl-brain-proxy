@@ -2982,416 +2982,207 @@ if (document.readyState === 'loading') {
 
 <script>
 'use strict';
-/* ═══════════════════════════════════════════════════════════════════════════
-   IPL BRAIN v5 — PART 3  (Gemini AI · Grounded Context · Chat UI · Final Init)
-═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   IPL BRAIN v5 — PART 3  (Clean rewrite — single init, no conflicts)
+═══════════════════════════════════════════════════════════ */
 
-/* ──────────────────────────────────────────────────────────
-   20.  GEMINI SYSTEM PROMPT
-────────────────────────────────────────────────────────── */
-const GEMINI_SYSTEM = `You are IPL Brain — the world's most knowledgeable IPL AI assistant, built into a real-time intelligence dashboard.
+/* ── Gemini System Prompt ── */
+const GEMINI_SYSTEM = `You are IPL Brain — expert IPL AI assistant with deep knowledge of every IPL season 2008-2026. RCB won IPL 2025 defeating SRH. IPL 2026 is underway. Format ALL responses as rich HTML using: <h2>/<h3> headings, <p> paragraphs, <ul><li> lists, stat cards <span class="sc">good</span> <span class="sr">bad</span> <span class="sl">neutral</span> <span class="sv">warning</span>, tables <table class="rt rtw">, insight boxes <div class="hbox">insight</div>. Be confident and data-rich. Never say "As an AI".`;
 
-YOUR IDENTITY:
-- Deep expert on all IPL seasons 2008–2026
-- You know every team, player, record, controversy, and match from all 19 seasons
-- RCB finally won their first IPL title in 2025 (defeating SRH in the final at Narendra Modi Stadium)
-- IPL 2026 is currently underway (April–June 2026), with all 10 teams competing
-
-YOUR KNOWLEDGE BASE:
-- All-time records: Most runs — Virat Kohli (8,000+), Most wickets — Yuzvendra Chahal (200+)
-- Highest team totals, lowest totals, fastest centuries, most sixes, hat-tricks
-- H2H: MI leads CSK 20–16 all-time; MI have 5 titles (most), CSK have 5 titles
-- Purple Cap, Orange Cap winners each season
-- All-time playoff records, final results, auction history
-- Venue histories, pitch behaviours, dew patterns, city crowd atmospheres
-
-FORMATTING — ALWAYS respond with rich HTML:
-- Use <h2> for main headings, <h3> for sub-sections
-- Stat cards: <span class="sc">value</span> (green=good), <span class="sr">value</span> (red/alert), <span class="sl">value</span> (blue/neutral), <span class="sv">value</span> (amber)
-- Tables: <table class="rt rtw"><thead><tr><th>Col</th></tr></thead><tbody><tr><td>data</td></tr></tbody></table>
-- Team badges: <span class="resp-badge pill-MI" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600;background:#e6eef8;color:#004BA0;"><span style="background:#004BA0;color:#fff;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;">MI</span>MI</span>
-- Insight boxes: <div class="hbox">key insight</div>
-- Use <p> tags for all paragraphs, <ul><li> for lists
-- Be confident, analytical, enthusiastic about cricket
-- Never say "As an AI" — you have live context injected before every message`;
-
-
-/* ──────────────────────────────────────────────────────────
-   21.  GROUNDED CONTEXT BUILDER
-────────────────────────────────────────────────────────── */
+/* ── Grounded Context ── */
 function getGroundedContext() {
-  const sections = [];
-
-  // ── Live match context ──
+  const parts = [];
   const d = STATE.liveData;
   if (d) {
     const v = getVenueStats(d.venue);
-    const runs    = d.rawRuns   !== undefined ? d.rawRuns   : parseInt(d.score1) || 0;
-    const overs   = d.rawOvers  !== undefined ? d.rawOvers  : parseFloat(d.overs || 0);
-    const wickets = d.rawWkts   !== undefined ? d.rawWkts   : 0;
-    const crr     = overs > 0 ? (runs / overs).toFixed(2) : '0.00';
-    const proj    = predictScore(runs, overs, v.avg_total);
-    const par     = parScore(overs, v.avg_total);
-    const wp      = winProbability(runs, overs, wickets, v.avg_total, !!d.isChasing, d.target || 0);
-    const t1s     = TEAM_STATS[d.team1] || {};
-    const t2s     = TEAM_STATS[d.team2] || {};
-    const label   = d.status === 'live' ? 'LIVE MATCH DATA' : 'DEMO MATCH DATA';
-
-    sections.push(`=== ${label} ===
-Match: ${d.team1} vs ${d.team2} | Venue: ${d.venue} | Date: ${d.dateStr}
-Score: ${runs}/${wickets} in ${overs} overs${d.isChasing && d.target ? ` | Target: ${d.target} | Need: ${d.target - runs} from ${Math.round((20 - overs) * 6)} balls` : ''}
-Current Run Rate: ${crr} | Projected Total: ${proj} | Par at ${overs}ov: ${par}
-Batting Team Win Probability: ${wp}% | Bowling Team: ${100 - wp}%
-Venue Avg PP: ${v.avg_pp} | Venue Avg Total: ${v.avg_total} | Chase Win%: ${v.chase_win_pct}%
-Pitch: ${v.pitch}
-${d.team1} stats — AvgPP:${t1s.avg_pp} AvgTotal:${t1s.avg_total} ChaseWin:${t1s.chase_win}%
-${d.team2} stats — AvgPP:${t2s.avg_pp} AvgTotal:${t2s.avg_total} ChaseWin:${t2s.chase_win}%`);
+    const runs = d.rawRuns || 0, overs = d.rawOvers || 0, wkts = d.rawWkts || 0;
+    const proj = predictScore(runs, overs, v.avg_total);
+    const par  = parScore(overs, v.avg_total);
+    const wp   = winProbability(runs, overs, wkts, v.avg_total, !!d.isChasing, d.target||0);
+    parts.push(`=== LIVE/DEMO MATCH ===\n${d.team1} vs ${d.team2} @ ${d.venue}\nScore: ${runs}/${wkts} in ${overs} ov | CRR: ${overs>0?(runs/overs).toFixed(2):0} | Proj: ${proj} | Par: ${par} | WinProb batting: ${wp}%${d.isChasing&&d.target?'\nTarget: '+d.target+' Need: '+(d.target-runs)+' from '+Math.round((20-overs)*6)+' balls':''}`);
   }
-
-  // ── Completed results ──
-  const completed = STATE.matches.filter(m => m.status === 'completed');
-  if (completed.length) {
-    const lines = completed.map(m =>
-      `  • ${m.dateStr}: ${m.team1} vs ${m.team2} @ ${m.venue} → Winner: ${m.winner || '?'} (${m.margin || ''}) | ${m.score1} / ${m.score2}`
-    ).join('\n');
-    sections.push(`=== IPL 2026 RESULTS ===\n${lines}`);
-  }
-
-  // ── Upcoming fixtures ──
-  const upcoming = STATE.matches.filter(m => m.status === 'upcoming');
-  if (upcoming.length) {
-    const lines = upcoming.map(m => {
-      const v = getVenueStats(m.venue);
-      return `  • ${m.dateStr}: ${m.team1} vs ${m.team2} @ ${m.venue} (AvgTotal:${v.avg_total} Chase:${v.chase_win_pct}%)`;
-    }).join('\n');
-    sections.push(`=== IPL 2026 UPCOMING ===\n${lines}`);
-  }
-
-  // ── Standings ──
-  const standings = buildDemoStandings();
-  const standLines = standings.map((r, i) =>
-    `  ${i+1}. ${r.team} — ${r.pts}pts W:${r.w} L:${r.l} NRR:${r.nrr >= 0 ? '+' : ''}${r.nrr.toFixed(3)}`
-  ).join('\n');
-  sections.push(`=== IPL 2026 STANDINGS ===\n${standLines}`);
-
-  // ── Venues ──
-  const venueLines = Object.entries(VENUES).map(([name, v]) =>
-    `  ${name}(${v.city}): Total=${v.avg_total} PP=${v.avg_pp} Chase%=${v.chase_win_pct} "${v.pitch}"`
-  ).join('\n');
-  sections.push(`=== VENUE DATABASE ===\n${venueLines}`);
-
-  // ── Team stats ──
-  const teamLines = Object.entries(TEAM_STATS).map(([code, s]) =>
-    `  ${code}(${TEAMS[code]?.name}): AvgPP=${s.avg_pp} AvgTotal=${s.avg_total} ChaseWin=${s.chase_win}%`
-  ).join('\n');
-  sections.push(`=== TEAM STATS ===\n${teamLines}`);
-
-  return sections.join('\n\n');
+  const done = STATE.matches.filter(m=>m.status==='completed');
+  if (done.length) parts.push('=== IPL 2026 RESULTS ===\n'+done.map(m=>`${m.dateStr}: ${m.team1} vs ${m.team2} @ ${m.venue} → ${m.winner||'?'} won | ${m.score1} / ${m.score2}`).join('\n'));
+  const up = STATE.matches.filter(m=>m.status==='upcoming');
+  if (up.length) parts.push('=== UPCOMING ===\n'+up.map(m=>{const v=getVenueStats(m.venue);return `${m.dateStr}: ${m.team1} vs ${m.team2} @ ${m.venue} (avg:${v.avg_total} chase:${v.chase_win_pct}%)`;}).join('\n'));
+  const st = buildDemoStandings();
+  parts.push('=== STANDINGS ===\n'+st.map((r,i)=>`${i+1}. ${r.team} ${r.pts}pts W:${r.w} L:${r.l} NRR:${r.nrr>=0?'+':''}${r.nrr.toFixed(3)}`).join('\n'));
+  parts.push('=== VENUES ===\n'+Object.entries(VENUES).map(([n,v])=>`${n}: total=${v.avg_total} pp=${v.avg_pp} chase=${v.chase_win_pct}% "${v.pitch}"`).join('\n'));
+  parts.push('=== TEAM STATS ===\n'+Object.entries(TEAM_STATS).map(([c,s])=>`${c}: pp=${s.avg_pp} total=${s.avg_total} chase=${s.chase_win}%`).join('\n'));
+  return parts.join('\n\n');
 }
 
-
-/* ──────────────────────────────────────────────────────────
-   22.  GEMINI API CALL
-────────────────────────────────────────────────────────── */
-async function callGemini(userMessage) {
-  const { gemini: geminiKey, proxy: proxyUrl } = STATE.keys;
-
-  if (!geminiKey) {
-    return `<div class="hbox">⚙️ No Gemini API key set. Add your key in the <strong>Setup</strong> tab to enable AI Chat.</div>
-<p>Get a free key (1,500 req/day) at <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent);">aistudio.google.com</a>.</p>`;
-  }
-
-  // Inject grounded context before each user message
+/* ── Gemini API Call ── */
+async function callGemini(userMsg) {
+  const {gemini: gKey, proxy: pUrl} = STATE.keys;
+  if (!gKey) return `<div class="hbox">⚙️ No Gemini key — add it in Setup tab.</div>`;
   const ctx = getGroundedContext();
-  const fullMsg = `${ctx}\n\n=== USER QUESTION ===\n${userMessage}`;
-
-  // Last 6 history turns for multi-turn context
-  const messages = [];
-  const histSlice = STATE.chatHistory.slice(-6);
-  for (const turn of histSlice) {
-    messages.push({ role: turn.role, parts: [{ text: turn.content }] });
-  }
-  messages.push({ role: 'user', parts: [{ text: fullMsg }] });
-
+  const fullMsg = ctx + '\n\n=== USER QUESTION ===\n' + userMsg;
+  const history = STATE.chatHistory.slice(-6).map(t=>({role:t.role, parts:[{text:t.content}]}));
+  history.push({role:'user', parts:[{text:fullMsg}]});
   const payload = {
-    system_instruction: { parts: [{ text: GEMINI_SYSTEM }] },
-    contents: messages,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 2048, topP: 0.9 },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
+    system_instruction: {parts:[{text:GEMINI_SYSTEM}]},
+    contents: history,
+    generationConfig: {temperature:0.7, maxOutputTokens:2048, topP:0.9},
   };
-
-  const apiKey = encodeURIComponent(geminiKey);
-  const url = proxyUrl
-    ? `${proxyUrl}/api/proxy?target=gemini&key=${apiKey}`
-    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(30000),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const candidate = data.candidates?.[0];
-  if (!candidate) throw new Error('No candidates returned by Gemini');
-  if (candidate.finishReason === 'SAFETY') {
-    return `<div class="hbox">⚠️ Response filtered by Gemini safety settings. Try rephrasing your question.</div>`;
-  }
-  const text = candidate.content?.parts?.map(p => p.text || '').join('') || '';
-  if (!text) throw new Error('Empty response from Gemini');
+  const url = pUrl
+    ? `${pUrl}/api/proxy?target=gemini&key=${encodeURIComponent(gKey)}`
+    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gKey}`;
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), signal:AbortSignal.timeout(30000)});
+  if (!r.ok) { const e=await r.text().catch(()=>''); throw new Error(`Gemini ${r.status}: ${e.slice(0,200)}`); }
+  const data = await r.json();
+  const cand = data.candidates?.[0];
+  if (!cand) throw new Error('No response from Gemini');
+  if (cand.finishReason==='SAFETY') return `<div class="hbox">⚠️ Response filtered. Try rephrasing.</div>`;
+  const text = cand.content?.parts?.map(p=>p.text||'').join('') || '';
+  if (!text) throw new Error('Empty Gemini response');
   return text;
 }
 
+/* ── Chat Helpers ── */
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function stripHtml(h){ const d=document.createElement('div'); d.innerHTML=h; return d.textContent||''; }
+function nowTime(){ return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
 
-/* ──────────────────────────────────────────────────────────
-   23.  CHAT UI HELPERS
-────────────────────────────────────────────────────────── */
-function escapeHtml(str) {
-  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function stripHtml(html) {
-  const d = document.createElement('div'); d.innerHTML = html;
-  return d.textContent || d.innerText || '';
-}
-function nowTime() {
-  return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-}
-
-function appendMessage(role, html, isTyping) {
-  const container = document.getElementById('chat-messages');
+function appendMsg(role, html, typing) {
+  const wrap = document.getElementById('chat-messages');
   const empty = document.getElementById('chat-empty-state');
   if (empty) empty.remove();
-
   const row = document.createElement('div');
   row.className = 'msg-row ' + role;
-
-  const avatar = role === 'user'
-    ? '<div class="msg-avatar user-av">🙋</div>'
-    : '<div class="msg-avatar ai-av">🏏</div>';
-
-  const bubble = isTyping
-    ? `<div class="msg-bubble ai typing">
-         <div class="typing-dots"><span></span><span></span><span></span></div>
-         <span style="font-size:.75rem;color:var(--text-3);margin-left:.4rem;">IPL Brain is thinking…</span>
-       </div>`
-    : `<div class="msg-bubble ${role === 'user' ? 'user' : 'ai'}">${html}</div>
-       <div class="msg-time">${nowTime()}</div>`;
-
-  row.innerHTML = avatar + `<div style="display:flex;flex-direction:column;max-width:100%;">${bubble}</div>`;
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
+  const av = role==='user' ? '<div class="msg-avatar user-av">🙋</div>' : '<div class="msg-avatar ai-av">🏏</div>';
+  const bubble = typing
+    ? `<div class="msg-bubble ai typing"><div class="typing-dots"><span></span><span></span><span></span></div><span style="font-size:.75rem;color:var(--text-3);margin-left:.4rem;">Thinking…</span></div>`
+    : `<div class="msg-bubble ${role==='user'?'user':'ai'}">${html}</div><div class="msg-time">${nowTime()}</div>`;
+  row.innerHTML = av + `<div style="display:flex;flex-direction:column;max-width:100%;">${bubble}</div>`;
+  wrap.appendChild(row);
+  wrap.scrollTop = wrap.scrollHeight;
   return row;
 }
 
-function replaceTypingBubble(row, html) {
+function replaceTyping(row, html) {
   const inner = row.querySelector('div[style]');
   if (inner) inner.innerHTML = `<div class="msg-bubble ai">${html}</div><div class="msg-time">${nowTime()}</div>`;
-  const c = document.getElementById('chat-messages');
-  c.scrollTop = c.scrollHeight;
+  const w = document.getElementById('chat-messages'); w.scrollTop = w.scrollHeight;
 }
 
-/* ──────────────────────────────────────────────────────────
-   24.  SEND MESSAGE
-────────────────────────────────────────────────────────── */
+/* ── Send Message ── */
 async function sendChatMessage() {
   if (STATE.chatBusy) return;
-  const input   = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('chat-send');
-  const userText = (input.value || '').trim();
-  if (!userText) return;
-
-  input.value = '';
-  input.style.height = 'auto';
-  STATE.chatBusy = true;
-  sendBtn.disabled = true;
-
-  // Show user bubble
-  appendMessage('user', escapeHtml(userText).replace(/\n/g, '<br>'));
-
-  // Save to history
-  STATE.chatHistory.push({ role: 'user', content: userText });
-
-  // Typing indicator
-  const typingRow = appendMessage('ai', '', true);
-
+  const inp = document.getElementById('chat-input');
+  const btn = document.getElementById('chat-send');
+  const txt = (inp.value||'').trim();
+  if (!txt) return;
+  inp.value=''; inp.style.height='auto';
+  STATE.chatBusy=true; btn.disabled=true;
+  appendMsg('user', escHtml(txt).replace(/\n/g,'<br>'));
+  STATE.chatHistory.push({role:'user', content:txt});
+  const typing = appendMsg('ai','',true);
   try {
-    const responseHtml = await callGemini(userText);
-    replaceTypingBubble(typingRow, responseHtml);
-
-    // Store plain-text version of response for history context
-    const plain = stripHtml(responseHtml).slice(0, 1200);
-    STATE.chatHistory.push({ role: 'model', content: plain });
-
-    // Trim history to last 20 turns
-    if (STATE.chatHistory.length > 20) STATE.chatHistory = STATE.chatHistory.slice(-20);
-
-  } catch (err) {
-    replaceTypingBubble(typingRow,
-      `<div class="hbox" style="border-color:var(--red);background:var(--red-soft);">
-         ❌ <strong>Error:</strong> ${escapeHtml(err.message)}
-         <br><span style="font-size:.72rem;color:var(--text-3);margin-top:.3rem;display:block;">
-           Check your Gemini API key and Vercel proxy URL in the Setup tab.
-         </span>
-       </div>`
-    );
-    toast('AI request failed — check Setup', 'err');
-    console.error('Gemini error:', err);
+    const resp = await callGemini(txt);
+    replaceTyping(typing, resp);
+    STATE.chatHistory.push({role:'model', content:stripHtml(resp).slice(0,1200)});
+    if (STATE.chatHistory.length>20) STATE.chatHistory=STATE.chatHistory.slice(-20);
+  } catch(e) {
+    replaceTyping(typing, `<div class="hbox" style="border-color:var(--red);background:var(--red-soft);">❌ <strong>Error:</strong> ${escHtml(e.message)}</div>`);
+    console.error('Gemini error:',e);
   } finally {
-    STATE.chatBusy = false;
-    sendBtn.disabled = false;
-    input.focus();
+    STATE.chatBusy=false; btn.disabled=false; inp.focus();
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   25.  RE-WIRE UI (overrides Part 2 stubs now sendChatMessage exists)
-────────────────────────────────────────────────────────── */
-function rewireChat() {
-  // Send button
-  const oldBtn = document.getElementById('chat-send');
-  const newBtn = oldBtn.cloneNode(true);
-  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-  newBtn.addEventListener('click', sendChatMessage);
+/* ── Page Navigation ── */
+function goToPage(name) {
+  // Hide all pages, deactivate all tabs
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  // Show selected page
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+  // Highlight selected tab
+  const tab = document.querySelector(`.nav-tab[data-page="${name}"]`);
+  if (tab) tab.classList.add('active');
+  STATE.page = name;
+  // Trigger renders
+  if (name === 'live')      { renderTracker(); }
+  if (name === 'analytics') { renderAnalytics(); }
+  if (name === 'chat' && STATE._showWelcome) {
+    STATE._showWelcome = false;
+    setTimeout(() => {
+      if (!document.getElementById('chat-empty-state')) return;
+      appendMsg('ai', `<h2>Welcome to IPL Brain v5 🏏</h2><p>I have deep knowledge of every IPL season 2008–2026, plus your live match data.</p><div class="hbox">🏆 <strong>RCB won IPL 2025</strong> — their maiden title, defeating SRH at Narendra Modi Stadium.</div><p>Use the Quick Ask buttons on the left or type any question below!</p>`);
+    }, 300);
+  }
+}
 
-  // Input
-  const oldIn = document.getElementById('chat-input');
-  const newIn = oldIn.cloneNode(true);
-  oldIn.parentNode.replaceChild(newIn, oldIn);
-  newIn.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
-  });
-  newIn.addEventListener('input', () => {
-    newIn.style.height = 'auto';
-    newIn.style.height = Math.min(120, newIn.scrollHeight) + 'px';
+/* ── Master Init ── */
+function masterInit() {
+  // 1. Load saved keys
+  loadKeys();
+
+  // 2. Wire ALL nav tabs (single clean binding)
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.addEventListener('click', () => goToPage(btn.dataset.page));
   });
 
-  // New chat button
-  const oldNC = document.getElementById('btn-new-chat');
-  const newNC = oldNC.cloneNode(true);
-  oldNC.parentNode.replaceChild(newNC, oldNC);
-  newNC.addEventListener('click', () => {
+  // 3. Wire Setup buttons
+  document.getElementById('btn-save-keys').addEventListener('click', saveKeys);
+  document.getElementById('btn-clear-keys').addEventListener('click', clearKeys);
+  document.getElementById('btn-test-connections').addEventListener('click', testConnections);
+  document.getElementById('btn-clear-cache').addEventListener('click', () => { store.clearCache(); toast('Cache cleared','ok'); });
+  document.getElementById('btn-export-settings').addEventListener('click', exportSettings);
+  document.getElementById('btn-load-demo').addEventListener('click', loadDemoMatch);
+  setupCopyButtons();
+
+  // 4. Wire chat send button
+  const sendBtn = document.getElementById('chat-send');
+  const chatInp = document.getElementById('chat-input');
+  sendBtn.addEventListener('click', sendChatMessage);
+  chatInp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();} });
+  chatInp.addEventListener('input', () => { chatInp.style.height='auto'; chatInp.style.height=Math.min(120,chatInp.scrollHeight)+'px'; });
+
+  // 5. Wire New Chat
+  document.getElementById('btn-new-chat').addEventListener('click', () => {
     STATE.chatHistory = [];
-    document.getElementById('chat-messages').innerHTML = `
-      <div class="chat-empty" id="chat-empty-state">
-        <div class="ce-icon">🏏</div>
-        <h3>IPL Brain AI</h3>
-        <p>Ask me anything about IPL — live match analysis, team stats, head-to-head records, venue intelligence, predictions, and more. I have all-time IPL knowledge from 2008 to 2026.</p>
-      </div>`;
+    document.getElementById('chat-messages').innerHTML = `<div class="chat-empty" id="chat-empty-state"><div class="ce-icon">🏏</div><h3>IPL Brain AI</h3><p>Ask me anything about IPL.</p></div>`;
     toast('New chat started');
   });
 
-  // Quick-ask buttons
+  // 6. Wire Quick Ask buttons
   document.querySelectorAll('.quick-btn').forEach(btn => {
-    const clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.addEventListener('click', () => {
-      const q = clone.dataset.q; if (!q) return;
-      showPage('chat');
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.q; if (!q) return;
+      goToPage('chat');
       const inp = document.getElementById('chat-input');
-      inp.value = q;
-      inp.dispatchEvent(new Event('input'));
-      setTimeout(sendChatMessage, 80);
+      inp.value = q; inp.dispatchEvent(new Event('input'));
+      setTimeout(sendChatMessage, 100);
     });
   });
-}
 
-
-/* ──────────────────────────────────────────────────────────
-   26.  WELCOME MESSAGE + PAGE-HOOK
-────────────────────────────────────────────────────────── */
-let _chatWelcomePending = false;
-
-// Wrap showPage to inject welcome on first chat visit
-const _baseShowPage = showPage;
-function showPage(name) {
-  _baseShowPage(name);
-  if (name === 'chat' && _chatWelcomePending) {
-    _chatWelcomePending = false;
-    setTimeout(() => {
-      if (!document.getElementById('chat-empty-state')) return;
-      appendMessage('ai', `
-<h2>Welcome to IPL Brain v5 🏏</h2>
-<p>I'm your AI-powered IPL intelligence assistant. I have deep knowledge of every season from 2008 through 2026, plus live match data from your current session.</p>
-<div class="hbox">🏆 <strong>RCB won IPL 2025</strong> — their maiden title, defeating SRH in the final at Narendra Modi Stadium, Ahmedabad. Virat Kohli wept at the presentation ceremony.</div>
-<h3>I can help you with:</h3>
-<ul>
-  <li>📊 <strong>Live analysis</strong> — win probability, par score, projected totals, smart insights</li>
-  <li>🏆 <strong>IPL 2026</strong> — standings, match results, upcoming fixtures with venue stats</li>
-  <li>⚔️ <strong>Head-to-head</strong> — any two teams, broken down by venue, season, and phase</li>
-  <li>🏟️ <strong>Venue intelligence</strong> — pitch reports, chase records, dew impact, boundary sizes</li>
-  <li>📖 <strong>All-time records</strong> — batting, bowling, fielding, team records across 19 seasons</li>
-  <li>🔮 <strong>Predictions</strong> — data-backed pre-match and mid-match analysis</li>
-</ul>
-<p>Use the <strong>Quick Ask</strong> buttons on the left to get started, or just type your question below!</p>`);
-    }, 350);
-  }
-}
-
-
-/* ──────────────────────────────────────────────────────────
-   27.  FINAL INIT (Part 3 — supersedes Part 2 stub)
-────────────────────────────────────────────────────────── */
-function init() {
-  // ── Load persisted API keys into STATE + inputs ──
-  loadKeys();
-
-  // ── Bind all Part 2 UI events (setup page, nav, cache, export) ──
-  bindEvents();
-  setupCopyButtons();
-
-  // ── Part 3: re-wire chat UI with real sendChatMessage ──
-  rewireChat();
-
-  // ── Restore persisted live match and matches list ──
+  // 7. Restore persisted state
   const savedLive = store.get('liveData');
   if (savedLive) STATE.liveData = savedLive;
-
   const savedMatches = store.get('matches');
   if (savedMatches && savedMatches.length) STATE.matches = savedMatches;
   else STATE.matches = DEMO_MATCHES;
 
-  // ── Pre-render analytics silently (it's fast, data is static) ──
+  // 8. Pre-render analytics (static data, instant)
   renderAnalytics();
 
-  // ── Welcome message on first-ever visit ──
-  const welcomed = store.get('welcomed');
-  if (!welcomed) {
-    store.set('welcomed', true);
-    _chatWelcomePending = true;
-  }
+  // 9. Welcome message on first visit
+  if (!store.get('welcomed')) { store.set('welcomed',true); STATE._showWelcome = true; }
 
-  // ── Nav tab click re-binding (override Part 2 to use new showPage wrapper) ──
-  document.querySelectorAll('.nav-tab').forEach(btn => {
-    const clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.addEventListener('click', () => showPage(clone.dataset.page));
-  });
-
-  // ── Kick off live data fetch with short delay so paint happens first ──
-  setTimeout(() => refreshLiveData(), 500);
-
-  // ── Seed the timer display ──
+  // 10. Start data refresh
+  setTimeout(() => refreshLiveData(), 800);
   document.getElementById('timer-txt').textContent = '↻ …';
 
-  console.log('IPL Brain v5 — fully loaded (Parts 1 + 2 + 3) ✓');
+  console.log('IPL Brain v5 — masterInit complete ✓');
 }
 
-// ── Bootstrap — this definition wins over Part 2's stub ──
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', masterInit);
 } else {
-  init();
+  masterInit();
 }
 </script>
 </body>
